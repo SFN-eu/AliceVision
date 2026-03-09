@@ -32,35 +32,19 @@ function(alicevision_add_library library_name)
         list(APPEND LIBRARY_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${library_name}_version.rc")
     endif()
 
-    if (NOT LIBRARY_USE_CUDA)
-        add_library(${library_name} ${LIBRARY_SOURCES})
-    
-        if (ALICEVISION_BUILD_COVERAGE AND CMAKE_COMPILER_IS_GNUCXX)
-            append_coverage_compiler_flags_to_target(${library_name})
-        endif()
+    add_library(${library_name} ${LIBRARY_SOURCES})
 
-    elseif (BUILD_SHARED_LIBS)
-        if(MSVC)
-            if(CMAKE_BUILD_TYPE MATCHES "Debug")
-                set(CUDA_LIB_OPTIONS --compiler-options "/MDd")
-            else()
-                set(CUDA_LIB_OPTIONS --compiler-options "/MD")
-            endif()
-        else()
-            set(CUDA_LIB_OPTIONS --compiler-options "-fPIC")
-        endif()
-        cuda_add_library(${library_name} SHARED ${LIBRARY_SOURCES} OPTIONS ${CUDA_LIB_OPTIONS})
-    else()
-        if(MSVC)
-            if(CMAKE_BUILD_TYPE MATCHES "Debug")
-                set(CUDA_LIB_OPTIONS --compiler-options "/MTd")
-            else()
-                set(CUDA_LIB_OPTIONS --compiler-options "/MT")
-            endif()
-        else()
-            set(CUDA_LIB_OPTIONS --compiler-options "-fPIC")
-        endif()
-        cuda_add_library(${library_name} ${LIBRARY_SOURCES} OPTIONS ${CUDA_LIB_OPTIONS})
+    if (ALICEVISION_BUILD_COVERAGE AND CMAKE_COMPILER_IS_GNUCXX)
+        append_coverage_compiler_flags_to_target(${library_name})
+    endif()
+
+    if (LIBRARY_USE_CUDA)
+        set_target_properties(${library_name}
+            PROPERTIES
+                CUDA_SEPARABLE_COMPILATION ON
+                CUDA_RESOLVE_DEVICE_SYMBOLS ON
+                POSITION_INDEPENDENT_CODE ON
+        )
     endif()
 
     if (ALICEVISION_REMOVE_ABSOLUTE)
@@ -72,18 +56,16 @@ function(alicevision_add_library library_name)
         set(TRANSFORMED_LIBRARY_PUBLIC_LINKS ${LIBRARY_PUBLIC_LINKS})
     endif()
 
-    # FindCUDA.cmake implicit	target_link_libraries() can not be mixed with new signature (CMake < 3.9.0)
-    if (NOT LIBRARY_USE_CUDA)
-        target_link_libraries(${library_name}
-            PUBLIC ${TRANSFORMED_LIBRARY_PUBLIC_LINKS}
-            PRIVATE ${LIBRARY_PRIVATE_LINKS}
-        )
-    else()
-        target_link_libraries(${library_name}
-            ${TRANSFORMED_LIBRARY_PUBLIC_LINKS}
-            ${LIBRARY_PRIVATE_LINKS}
-        )
+    set(ALICEVISION_LIBRARY_PRIVATE_LINKS ${LIBRARY_PRIVATE_LINKS})
+    if (LIBRARY_USE_CUDA)
+        list(APPEND ALICEVISION_LIBRARY_PRIVATE_LINKS ${ALICEVISION_CUDA_LIBRARIES})
     endif()
+
+    target_link_libraries(${library_name}
+        PUBLIC ${TRANSFORMED_LIBRARY_PUBLIC_LINKS}
+        PRIVATE ${ALICEVISION_LIBRARY_PRIVATE_LINKS}
+    )
+    unset(ALICEVISION_LIBRARY_PRIVATE_LINKS)
 
     target_include_directories(${library_name}
         PUBLIC $<BUILD_INTERFACE:${ALICEVISION_INCLUDE_DIR}>

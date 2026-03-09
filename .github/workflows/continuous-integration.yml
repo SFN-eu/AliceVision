@@ -238,7 +238,7 @@ jobs:
         id: cuda-toolkit
         with:
           cuda: '12.8.0'
-          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "cusparse", "npp", "npp_dev", "cufft", "cufft_dev"]'
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "cusparse", "npp", "npp_dev", "cufft", "cufft_dev", "visual_studio_integration"]'
 
 
       - uses: lukka/get-cmake@latest
